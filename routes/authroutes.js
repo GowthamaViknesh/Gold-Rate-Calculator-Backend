@@ -16,13 +16,6 @@ const {
   deleteRecord,
 } = require('../controllers/controller');
 
-//middleware
-router.use(
-  cors({
-    credentials: true,
-    origin: 'https://6502b49110f85c2b90f6686e--superlative-pithivier-4b4a80.netlify.app/',
-  })
-);
 
 //Creating the routes to access the api end point
 router.get('/', test);
