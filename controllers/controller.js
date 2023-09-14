@@ -448,10 +448,12 @@ const isloggedIn = async (req, res) => {
   try {
     const token = req.cookies.token;
 
-    if (!token)
+    if (!token) {
       return res.status(200).json({ status: false, message: 'Unauthorized' });
-    jwt.verify(token, process.env.JWT_SECRET);
-    res.status(201).json({ status: true, message: 'Authorized' });
+    } else {
+      jwt.verify(token, process.env.JWT_SECRET);
+      res.status(201).json({ status: true, message: 'Authorized' });
+    }
   } catch (error) {
     console.log(error);
     res.status(200).json({ status: false, message: 'Try again sometime' });
