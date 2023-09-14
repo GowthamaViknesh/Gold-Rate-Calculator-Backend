@@ -20,7 +20,7 @@ const {
 router.use(
   cors({
     credentials: true,
-    origin: 'http://localhost:3000',
+    origin: 'https://6502b49110f85c2b90f6686e--superlative-pithivier-4b4a80.netlify.app/',
   })
 );
 
