@@ -54,7 +54,7 @@ const registerUser = async (req, res) => {
       return res
         .status(201)
         .json({ status: true, message: 'User Created Successfully 👌❤️' });
-    }, 5000);
+    }, 1000);
   } catch (error) {
     res.status(200).json({ message: 'Someting Went Wrong!!' });
   }
@@ -81,7 +81,11 @@ const loginUser = async (req, res) => {
       if (match) {
         const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET);
         res
-          .cookie('token', token)
+          .cookie('token', token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+          })
           .json({ status: true, message: 'Welcome🙏😊', user });
       }
       if (!match) {
@@ -123,7 +127,7 @@ const logoutUser = (req, res) => {
   setTimeout(() => {
     res.clearCookie('token');
     res.status(201).json({ status: true, message: 'Loggedout 😔' });
-  }, 5000);
+  }, 1000);
 };
 
 //FeedBack from users and it didnt have to signup
@@ -445,9 +449,8 @@ const resetPassword = async (req, res) => {
 
 //To check the app wheather user is logged in or not
 const isloggedIn = async (req, res) => {
+  const token = req.cookies.token;
   try {
-    const token = req.cookies.token;
-
     if (!token) {
       return res.status(200).json({ status: false, message: 'Unauthorized' });
     } else {
@@ -455,7 +458,7 @@ const isloggedIn = async (req, res) => {
       res.status(201).json({ status: true, message: 'Authorized' });
     }
   } catch (error) {
-    console.log(error);
+    console.log('Token verification error:', error);
     res.status(200).json({ status: false, message: 'Try again sometime' });
   }
 };

@@ -14,8 +14,8 @@ app.use(cookieparser());
 
 app.use(
   cors({
+    origin: 'https://gold-rate-calculator-fornt-end.vercel.app/',
     credentials: true,
-    origin: 'http://localhost:3000',
   })
 );
 
