@@ -7,6 +7,8 @@ const { hashedPassword, comparePassword } = require('../helpers/auth');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+let OTP;
+
 //Testing the port and server
 const test = (req, res) => {
   res.json('test is working');
@@ -43,6 +45,7 @@ const registerUser = async (req, res) => {
         .json({ status: false, message: 'Email Already Exists' });
     }
 
+    const token = jwt.sign({ email: email }, process.env.JWT_SECRET);
     const hashPassword = await hashedPassword(password);
     setTimeout(async () => {
       await User.create({
@@ -51,9 +54,11 @@ const registerUser = async (req, res) => {
         phone_no,
         password: hashPassword,
       });
-      return res
-        .status(201)
-        .json({ status: true, message: 'User Created Successfully 👌❤️' });
+      return res.status(201).json({
+        status: true,
+        message: 'User Created Successfully 👌❤️',
+        token: token,
+      });
     }, 1000);
   } catch (error) {
     res.status(200).json({ message: 'Someting Went Wrong!!' });
@@ -70,28 +75,23 @@ const loginUser = async (req, res) => {
         .status(200)
         .json({ status: false, message: 'Enter the details' });
     }
-    setTimeout(async () => {
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res
-          .status(200)
-          .json({ status: false, message: 'No user found 🤷‍♀️' });
-      }
-      const match = await comparePassword(password, user.password);
-      if (match) {
-        const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET);
-        res
-          .cookie('token', token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none',
-          })
-          .json({ status: true, message: 'Welcome🙏😊', user });
-      }
-      if (!match) {
-        res.json({ status: false, message: 'Password does not match!!' });
-      }
-    }, 5000);
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res
+        .status(200)
+        .json({ status: false, message: 'No user found 🤷‍♀️' });
+    }
+    const match = await comparePassword(password, user.password);
+    if (match) {
+      const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET);
+      res
+        .status(200)
+        .json({ status: true, message: 'Welcome🙏😊', user, data: token });
+    }
+    if (!match) {
+      res.json({ status: false, message: 'Password does not match!!' });
+    }
   } catch (error) {
     console.log(error);
   }
@@ -99,14 +99,12 @@ const loginUser = async (req, res) => {
 
 //Get a user details
 const getProfile = async (req, res) => {
-  const { token } = req.cookies;
-
+  const { token } = req.body;
   if (token) {
     try {
       const { email } = jwt.verify(token, process.env.JWT_SECRET);
-
       const user = await User.findOne({ email: email });
-      console.log(user.name);
+      console.log(user);
       if (!user) {
         res.status(200).json({ status: false, message: 'User Not Found' });
       } else {
@@ -120,14 +118,6 @@ const getProfile = async (req, res) => {
       res.status(200).json({ status: false, message: 'Something Went Wrong' });
     }
   }
-};
-
-//Logout your profile with safe way
-const logoutUser = (req, res) => {
-  setTimeout(() => {
-    res.clearCookie('token');
-    res.status(201).json({ status: true, message: 'Loggedout 😔' });
-  }, 1000);
 };
 
 //FeedBack from users and it didnt have to signup
@@ -330,27 +320,13 @@ button {
   }
 };
 
-//Forget the password you can send a mail
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
+  const token = jwt.sign({ email: email }, process.env.JWT_SECRET);
+  OTP = Math.floor(1000 + Math.random() * 9000);
+  const existingUser = await User.findOne({ email });
   try {
-    const emailcheck = await User.findOne({ email: email });
-
-    if (!emailcheck) {
-      return res
-        .status(200)
-        .json({ status: false, message: 'Enter the Valid email!' });
-    } else {
-      let token = jwt.sign({ email: emailcheck.email }, process.env.JWT_SECRET);
-      res.cookie('token', token, {
-        expires: new Date(Date.now() + 3600000),
-        httpOnly: true,
-      });
-
-      const link = `http://localhost:3000/reset`;
-
-      console.log(link);
-
+    if (existingUser) {
       let transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -359,69 +335,69 @@ const forgotPassword = async (req, res) => {
         },
       });
 
-      let mailOptions = {
+      const mailOption = {
         from: 'gowthampostbox30@gmail.com',
-        to: emailcheck.email,
-        subject: 'PassWord Reset Link',
+        to: existingUser.email,
+        subject: `Welcome From Aura Jewlles Team - ${existingUser.name} `,
         html: `<!DOCTYPE html>
         <html lang="en">
         <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9"
-      crossorigin="anonymous"
-          <title>Aura Jewells</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Document</title>
         </head>
         <body>
-        <div class="card" style="width: 28rem;">
-  <div class="card-body">
-    <h5 class="card-title">Reset link</h5>
-    <h6 class="card-subtitle mb-2 text-body-secondary"></h6>
-    <p class="card-text">Click the link for reset your password</p>
-    <button class="btn mb-3"> <a href="${link}">Verify you Email</a></button>
-    
-  </div>
-</div>
-         
-          <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm"
-      crossorigin="anonymous"
-    ></script>
+            <div>
+            <h3>Hi ${existingUser.name},</h3> 
+              <h3>You can Reset Your Password using Below OTP</h3>
+            <h1>${OTP}</h1>
+            <h3>Happy Shopping :) Aura-Jewells</h3>
+               <img src="https://images.unsplash.com/photo-1571587289339-cb7da03fb5a6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1925&q=80" width:"200px" height:"200px"  />
+              
+            </div>
         </body>
         </html>`,
       };
 
-      transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-          console.error(error);
-          return res
-            .status(200)
-            .json({ status: false, message: 'Email could not be sent' });
+      transporter.sendMail(mailOption, (err) => {
+        if (!err) {
+          res.status(201).json({
+            status: true,
+            message: 'OTP Sended SuccessFully',
+            data: token,
+          });
         } else {
-          console.log('Email sent: ' + info.response);
-          return res
-            .status(201)
-            .json({ status: true, message: 'Check your Mail' });
+          res
+            .status(205)
+            .json({ status: false, message: 'Error in Sending OTP' });
         }
       });
+    } else {
+      res.json({ status: false, message: 'Please Register' });
     }
   } catch (error) {
-    res.status(200).json({ status: false, message: 'Something Went Wrong' });
+    res.status(404).json({ message: '404 Page Not Found' });
+  }
+};
+
+const verifyOTP = async (req, res) => {
+  const { UserOTP } = req.body;
+  try {
+    if (UserOTP == OTP) {
+      res.status(200).json({ status: true, message: 'OTP is Verified' });
+    } else {
+      res.status(200).json({ status: false, message: 'Invalid OTP' });
+    }
+  } catch (error) {
+    res.status(404).json({ message: '404 Page not Found' });
   }
 };
 
 //After sending the mail you get a link to reset
 const resetPassword = async (req, res) => {
-  const { password, confirmpassword } = req.body;
-  const token = req.cookies.token;
-
+  const { password, confirmpassword, token } = req.body;
   try {
     const verify = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Decoded token:', verify);
     const email = verify.email;
 
     if (password === confirmpassword) {
@@ -447,28 +423,13 @@ const resetPassword = async (req, res) => {
   }
 };
 
-//To check the app wheather user is logged in or not
-const isloggedIn = async (req, res) => {
-  const token = req.cookies.token;
-  try {
-    if (!token) {
-      return res.status(200).json({ status: false, message: 'Unauthorized' });
-    } else {
-      jwt.verify(token, process.env.JWT_SECRET);
-      res.status(201).json({ status: true, message: 'Authorized' });
-    }
-  } catch (error) {
-    console.log('Token verification error:', error);
-    res.status(200).json({ status: false, message: 'Try again sometime' });
-  }
-};
-
 //Save the calculator total in database
 const saveCalc = async (req, res) => {
-  const token = req.cookies.token;
-  const { email } = jwt.verify(token, process.env.JWT_SECRET);
+  const { token } = req.body;
   const { goldrate, gstgold, total } = req.body;
   try {
+    const { email } = jwt.verify(token, process.env.JWT_SECRET);
+    console.log(email);
     if (!goldrate || !gstgold || !total) {
       return res
         .status(200)
@@ -498,19 +459,18 @@ const saveCalc = async (req, res) => {
 
 //Get the data from calc save database
 const getData = async (req, res) => {
-  const token = req.cookies.token;
+  const { token } = req.body;
   try {
     const { email } = jwt.verify(token, process.env.JWT_SECRET);
     if (!email) {
       res.status(200).json({ status: false, message: 'Email is not defined' });
     }
     const calcsavedData = await Calculator.findOne({ email: email });
-
     if (!calcsavedData) {
       return res.status(404).json({ status: false, message: 'No data found' });
+    } else {
+      res.status(200).json({ status: true, data: calcsavedData });
     }
-
-    res.status(200).json({ status: true, data: calcsavedData });
   } catch (error) {
     res.status(200).json({ status: false, message: 'Try later' });
   }
@@ -518,15 +478,14 @@ const getData = async (req, res) => {
 
 //Delete data database the calc collections
 const deleteRecord = async (req, res) => {
+  const { token } = req.body;
+  console.log(token);
   try {
-    const token = req.cookies.token;
-
     const { email } = jwt.verify(token, process.env.JWT_SECRET);
-
     if (!email) {
       return res
         .status(200)
-        .json({ status: false, message: 'Email is not defined' });
+        .json({ status: false, message: 'Unauthorized: Invalid token' });
     }
 
     const calcData = await Calculator.findOne({ email });
@@ -535,40 +494,36 @@ const deleteRecord = async (req, res) => {
       return res.status(200).json({ status: false, message: 'No data found' });
     }
 
-    // Assuming you want to delete a specific entry from the data array based on some criteria.
-    // Here, we'll remove the entry with a matching "total" value.
-    const { total } = req.body; // You should include a request parameter to specify what to delete.
-
+    const { total } = req.body;
     if (!total) {
       return res
         .status(200)
         .json({ status: false, message: 'Please provide data to delete' });
     }
 
-    // Find the index of the data entry to delete
     const dataIndexToDelete = calcData.data.findIndex(
       (entry) => entry.total === total
     );
-    console.log(dataIndexToDelete);
 
     if (dataIndexToDelete === -1) {
       return res
-        .status(404)
+        .status(200)
         .json({ status: false, message: 'Data to delete not found' });
     }
 
-    // Remove the entry from the data array
     calcData.data.splice(dataIndexToDelete, 1);
-
-    // Save the updated document
     await calcData.save();
-
-    res
-      .status(200)
-      .json({ status: true, message: 'Data deleted successfully' });
+    res.status(201).json({
+      status: true,
+      message: 'Data deleted successfully',
+      token: token,
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: 'Try again later' });
+    res.status(200).json({
+      status: false,
+      message: 'Internal server error: Try again later',
+    });
   }
 };
 
@@ -579,11 +534,10 @@ module.exports = {
   loginUser,
   forgotPassword,
   getProfile,
-  logoutUser,
   getContact,
-  isloggedIn,
   resetPassword,
   saveCalc,
   getData,
   deleteRecord,
+  verifyOTP,
 };

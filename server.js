@@ -12,12 +12,7 @@ app.use(express.json());
 
 app.use(cookieparser());
 
-app.use(
-  cors({
-    origin: 'https://gold-rate-calculator-fornt-end.vercel.app/',
-    credentials: true,
-  })
-);
+app.use(cors());
 
 app.use(express.urlencoded({ extended: true }));
 
